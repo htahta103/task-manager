@@ -130,3 +130,27 @@ func TestPatchTaskRejectsInvalidUUID(t *testing.T) {
 		t.Fatalf("expected error %q, got %q", "invalid UUID", payload["error"])
 	}
 }
+
+func TestPatchTaskReturns404ForUnknownUUID(t *testing.T) {
+	server := newServer(NewTaskService(NewMemoryRepo()))
+
+	body := []byte(`{"title":"new title"}`)
+	req := httptest.NewRequest(http.MethodPatch, "/api/tasks/00000000-0000-0000-0000-000000000000", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d", http.StatusNotFound, rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("expected application/json content-type, got %q", got)
+	}
+	var payload map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to decode error payload: %v", err)
+	}
+	if payload["error"] != "Task not found" {
+		t.Fatalf("expected error %q, got %q", "Task not found", payload["error"])
+	}
+}
