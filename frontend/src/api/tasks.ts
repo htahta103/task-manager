@@ -8,9 +8,18 @@ export type ListTasksParams = {
 }
 
 export async function listTasks(params: ListTasksParams = {}): Promise<Task[]> {
-  return await apiRequest<Task[]>({
+  const res = await apiRequest<{ data: Task[] }>({
     path: '/tasks',
     query: params,
+  })
+  return res.data
+}
+
+export async function createTask(input: { title: string }): Promise<Task> {
+  return await apiRequest<Task>({
+    method: 'POST',
+    path: '/tasks',
+    body: input,
   })
 }
 

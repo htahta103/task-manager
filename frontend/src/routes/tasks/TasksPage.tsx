@@ -1,12 +1,27 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useTasksStore } from '../../state/tasksStore'
 
 export function TasksPage() {
-  const { tasks, error, isLoading, refresh } = useTasksStore()
+  const { tasks, error, isLoading, refresh, add } = useTasksStore()
+  const [title, setTitle] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = title.trim()
+    if (!trimmed) return
+    setIsSubmitting(true)
+    try {
+      await add(trimmed)
+      setTitle('')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <section className="space-y-6">
@@ -15,10 +30,31 @@ export function TasksPage() {
           Tasks
         </h1>
         <p className="text-sm text-[color:var(--muted)]">
-          This is a scaffold page. It currently loads tasks from the API and
-          renders a simple list.
+          Add a task and it will appear immediately in the list.
         </p>
       </header>
+
+      <form
+        onSubmit={onSubmit}
+        className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-[var(--border)] bg-white/5 p-4 sm:flex-row sm:items-end"
+      >
+        <label className="flex-1 space-y-1">
+          <span className="text-xs font-medium text-white/70">Title</span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Buy milk"
+            className="w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/20"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={isSubmitting || title.trim().length === 0}
+          className="rounded-md bg-white/90 px-4 py-2 text-sm font-medium text-black disabled:opacity-50"
+        >
+          {isSubmitting ? 'Adding…' : 'Add task'}
+        </button>
+      </form>
 
       <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-white/5 p-4">
         {isLoading ? (
@@ -36,7 +72,7 @@ export function TasksPage() {
                     {t.title}
                   </div>
                   <div className="text-xs text-[color:var(--muted)]">
-                    {t.status} • {t.priority}
+                    Created {new Date(t.created_at).toLocaleString()}
                   </div>
                 </div>
               </li>
