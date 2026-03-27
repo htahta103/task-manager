@@ -8,6 +8,38 @@ import (
 	"testing"
 )
 
+func TestListTasksReturnsEmptyArrayOnFreshServer(t *testing.T) {
+	server := newServer()
+	req := httptest.NewRequest(http.MethodGet, "/api/tasks", nil)
+	rec := httptest.NewRecorder()
+
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("expected application/json content-type, got %q", got)
+	}
+
+	var payload struct {
+		Data  []task `json:"data"`
+		Count int    `json:"count"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to decode list payload: %v", err)
+	}
+	if payload.Data == nil {
+		t.Fatal("expected data to be an empty array, got null")
+	}
+	if len(payload.Data) != 0 {
+		t.Fatalf("expected no tasks, got %d", len(payload.Data))
+	}
+	if payload.Count != 0 {
+		t.Fatalf("expected count 0, got %d", payload.Count)
+	}
+}
+
 func TestCreateTaskRejectsMissingTitle(t *testing.T) {
 	server := newServer()
 	body := []byte(`{"description":"missing title"}`)

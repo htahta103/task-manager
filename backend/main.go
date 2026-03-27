@@ -38,6 +38,7 @@ func newServer() *apiServer {
 func (s *apiServer) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", s.handleHealth)
+	mux.HandleFunc("GET /api/tasks", s.handleListTasks)
 	mux.HandleFunc("POST /api/tasks", s.handleCreateTask)
 	return mux
 }
@@ -46,6 +47,13 @@ func (s *apiServer) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status":    "ok",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+func (s *apiServer) handleListTasks(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"data":  s.tasks,
+		"count": len(s.tasks),
 	})
 }
 
