@@ -51,13 +51,55 @@ func newServer(svc *TaskService) *apiServer {
 
 func (s *apiServer) routes() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", s.handleHealth)
-	mux.HandleFunc("GET /api/tasks", s.handleListTasks)
-	mux.HandleFunc("POST /api/tasks", s.handleCreateTask)
-	mux.HandleFunc("GET /api/tasks/{id}", s.handleGetTask)
-	mux.HandleFunc("PATCH /api/tasks/{id}", s.handlePatchTask)
-	mux.HandleFunc("DELETE /api/tasks/{id}", s.handleDeleteTask)
-	mux.HandleFunc("DELETE /api/tasks/clear/done", s.handleClearDoneTasks)
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		s.handleHealth(w, r)
+	})
+
+	mux.HandleFunc("/api/tasks/clear/done", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		s.handleClearDoneTasks(w, r)
+	})
+
+	mux.HandleFunc("/api/tasks", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			s.handleListTasks(w, r)
+		case http.MethodPost:
+			s.handleCreateTask(w, r)
+		default:
+			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		}
+	})
+
+	mux.HandleFunc("/api/tasks/", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, "/api/tasks/")
+		if strings.TrimSpace(id) == "" || strings.Contains(id, "/") {
+			writeError(w, http.StatusNotFound, "not found")
+			return
+		}
+		r.SetPathValue("id", id)
+		switch r.Method {
+		case http.MethodGet:
+			s.handleGetTask(w, r)
+		case http.MethodPatch:
+			s.handlePatchTask(w, r)
+		case http.MethodDelete:
+			s.handleDeleteTask(w, r)
+		default:
+			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		}
+	})
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		writeError(w, http.StatusNotFound, "not found")
+	})
 
 	return s.withMiddleware(mux)
 }

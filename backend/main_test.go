@@ -80,6 +80,33 @@ func TestCreateTaskRejectsMissingTitle(t *testing.T) {
 	}
 }
 
+func TestUnknownRouteReturnsJSONContentType(t *testing.T) {
+	server := newServer(NewTaskService(NewMemoryRepo()))
+	req := httptest.NewRequest(http.MethodGet, "/does-not-exist", nil)
+	rec := httptest.NewRecorder()
+
+	server.routes().ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("expected application/json content-type, got %q", got)
+	}
+}
+
+func TestOptionsReturnsJSONContentType(t *testing.T) {
+	server := newServer(NewTaskService(NewMemoryRepo()))
+	req := httptest.NewRequest(http.MethodOptions, "/api/tasks", nil)
+	rec := httptest.NewRecorder()
+
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("expected application/json content-type, got %q", got)
+	}
+}
+
 func TestPatchTaskRejectsInvalidUUID(t *testing.T) {
 	server := newServer(NewTaskService(NewMemoryRepo()))
 

@@ -4,5 +4,6 @@
 __pycache__/
 .beads/
 *.out
+backend/backend
 state.json
 CLAUDE.md

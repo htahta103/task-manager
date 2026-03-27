@@ -7,6 +7,9 @@ import (
 
 func (s *apiServer) withMiddleware(next http.Handler) http.Handler {
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Ensure default JSON content type even for 404/405 responses.
+		w.Header().Set("Content-Type", "application/json")
+
 		// CORS (very small v1: allow a single origin if configured)
 		if s.corsOrigin != "" {
 			w.Header().Set("Access-Control-Allow-Origin", s.corsOrigin)
