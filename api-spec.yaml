@@ -4,6 +4,7 @@ info:
   version: "1.0.0"
 servers:
   - url: /api
+security: []
 paths:
   /health:
     get:
@@ -156,6 +157,13 @@ paths:
                     type: integer
                     minimum: 0
 components:
+  securitySchemes:
+    noAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Placeholder for future authenticated mode. v1 is intentionally unauthenticated,
+        so no global security requirement is applied.
   responses:
     BadRequest:
       description: Bad request

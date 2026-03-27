@@ -65,6 +65,12 @@ Base path: `/api`
 
 Canonical shapes are defined in `api-spec.yaml`.
 
+### Auth model
+
+- **v1 has no user authentication** (single-tenant app scope).
+- All API endpoints are currently unauthenticated and rely on deployment-level network controls.
+- Future migration path: add bearer token auth (JWT or opaque session token) without changing resource paths.
+
 ### Error model (high level)
 
 - **400**: invalid UUID, validation errors, malformed JSON
