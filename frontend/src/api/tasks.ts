@@ -14,3 +14,10 @@ export async function listTasks(params: ListTasksParams = {}): Promise<Task[]> {
   })
 }
 
+export async function deleteTask(id: string): Promise<void> {
+  await apiRequest({
+    method: 'DELETE',
+    path: `/tasks/${id}`,
+  })
+}
+

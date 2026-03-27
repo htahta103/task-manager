@@ -2,11 +2,17 @@ import { useEffect } from 'react'
 import { useTasksStore } from '../../state/tasksStore'
 
 export function TasksPage() {
-  const { tasks, error, isLoading, refresh } = useTasksStore()
+  const { tasks, error, isLoading, refresh, removeTask } = useTasksStore()
 
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  const handleDelete = async (id: string, title: string) => {
+    const confirmed = window.confirm(`Delete task "${title}"?`)
+    if (!confirmed) return
+    await removeTask(id)
+  }
 
   return (
     <section className="space-y-6">
@@ -39,6 +45,15 @@ export function TasksPage() {
                     {t.status} • {t.priority}
                   </div>
                 </div>
+                <button
+                  type="button"
+                  className="rounded border border-[var(--border)] px-2 py-1 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+                  onClick={() => {
+                    void handleDelete(t.id, t.title)
+                  }}
+                >
+                  Delete
+                </button>
               </li>
             ))}
             {tasks.length === 0 ? (
