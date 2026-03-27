@@ -8,6 +8,21 @@ import (
 	"testing"
 )
 
+func TestHealthAlwaysReturns200(t *testing.T) {
+	server := newServer()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rec := httptest.NewRecorder()
+
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("expected application/json content-type, got %q", got)
+	}
+}
+
 func TestListTasksReturnsEmptyArrayOnFreshServer(t *testing.T) {
 	server := newServer()
 	req := httptest.NewRequest(http.MethodGet, "/api/tasks", nil)
