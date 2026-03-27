@@ -7,10 +7,17 @@ export type ListTasksParams = {
   search?: string
 }
 
+type ListTasksResponse = {
+  data: Task[]
+  count: number
+}
+
 export async function listTasks(params: ListTasksParams = {}): Promise<Task[]> {
-  return await apiRequest<Task[]>({
-    path: '/tasks',
+  const res = await apiRequest<Task[] | ListTasksResponse>({
+    path: '/api/tasks',
     query: params,
   })
+  if (Array.isArray(res)) return res
+  return Array.isArray(res.data) ? res.data : []
 }
 
