@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:staging": "VITE_API_URL=${VITE_API_URL:-https://taskmanager-api-staging.fly.dev/api} npm run build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:staging": "npm run build:staging && CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID:-353a69adadf77371f073ef6bb0a66f4c} npx wrangler pages deploy dist --project-name ${CLOUDFLARE_PAGES_PROJECT} --branch main --commit-dirty=true"
   },
   "dependencies": {
     "react": "^19.2.4",
