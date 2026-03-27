@@ -165,7 +165,7 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
           examples:
             invalid_uuid:
-              value: { "error": "invalid UUID" }
+              value: { "error": "invalid id \"not-a-uuid\": expected UUID" }
             validation:
               value: { "error": "title is required and must be under 255 characters" }
     NotFound:

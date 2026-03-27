@@ -99,7 +99,8 @@ func TestPatchTaskRejectsInvalidUUID(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("failed to decode error payload: %v", err)
 	}
-	if payload["error"] != "invalid UUID" {
-		t.Fatalf("expected error %q, got %q", "invalid UUID", payload["error"])
+	expected := `invalid id "not-a-uuid": expected UUID`
+	if payload["error"] != expected {
+		t.Fatalf("expected error %q, got %q", expected, payload["error"])
 	}
 }

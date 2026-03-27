@@ -94,11 +94,15 @@ func buildRepository(ctx context.Context) (TaskRepository, func(), error) {
 }
 
 func (s *apiServer) mapError(w http.ResponseWriter, err error) {
+	var invalidID InvalidIDError
 	switch {
 	case err == nil:
 		return
+	case errors.As(err, &invalidID):
+		writeError(w, http.StatusBadRequest, invalidID.Error())
 	case errors.Is(err, ErrInvalidUUID):
-		writeError(w, http.StatusBadRequest, "invalid UUID")
+		// Backward compat for older code paths.
+		writeError(w, http.StatusBadRequest, "invalid id: expected UUID")
 	case IsValidation(err):
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, ErrNotFound):

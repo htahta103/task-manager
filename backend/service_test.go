@@ -93,8 +93,24 @@ func TestTaskService_Get_RejectsInvalidUUID(t *testing.T) {
 	})
 
 	_, err := svc.Get(context.Background(), "not-a-uuid")
-	if !errors.Is(err, ErrInvalidUUID) {
-		t.Fatalf("expected ErrInvalidUUID, got %v", err)
+	var invalidID InvalidIDError
+	if !errors.As(err, &invalidID) || invalidID.Problem != "invalid" || invalidID.Param != "id" {
+		t.Fatalf("expected InvalidIDError(invalid id), got %v", err)
+	}
+}
+
+func TestTaskService_Get_RejectsMissingID(t *testing.T) {
+	svc := NewTaskService(stubRepo{
+		getFn: func(context.Context, string) (Task, error) {
+			t.Fatal("repo.Get should not be called on missing id")
+			return Task{}, nil
+		},
+	})
+
+	_, err := svc.Get(context.Background(), "   ")
+	var invalidID InvalidIDError
+	if !errors.As(err, &invalidID) || invalidID.Problem != "missing" || invalidID.Param != "id" {
+		t.Fatalf("expected InvalidIDError(missing id), got %v", err)
 	}
 }
 
@@ -107,8 +123,9 @@ func TestTaskService_Patch_RejectsInvalidUUID(t *testing.T) {
 	})
 
 	_, err := svc.Patch(context.Background(), "not-a-uuid", PatchTaskInput{Title: ptr("x")})
-	if !errors.Is(err, ErrInvalidUUID) {
-		t.Fatalf("expected ErrInvalidUUID, got %v", err)
+	var invalidID InvalidIDError
+	if !errors.As(err, &invalidID) || invalidID.Problem != "invalid" || invalidID.Param != "id" {
+		t.Fatalf("expected InvalidIDError(invalid id), got %v", err)
 	}
 }
 
@@ -215,8 +232,24 @@ func TestTaskService_Delete_RejectsInvalidUUID(t *testing.T) {
 	})
 
 	err := svc.Delete(context.Background(), "not-a-uuid")
-	if !errors.Is(err, ErrInvalidUUID) {
-		t.Fatalf("expected ErrInvalidUUID, got %v", err)
+	var invalidID InvalidIDError
+	if !errors.As(err, &invalidID) || invalidID.Problem != "invalid" || invalidID.Param != "id" {
+		t.Fatalf("expected InvalidIDError(invalid id), got %v", err)
+	}
+}
+
+func TestTaskService_Delete_RejectsMissingID(t *testing.T) {
+	svc := NewTaskService(stubRepo{
+		deleteFn: func(context.Context, string) error {
+			t.Fatal("repo.Delete should not be called on missing id")
+			return nil
+		},
+	})
+
+	err := svc.Delete(context.Background(), "")
+	var invalidID InvalidIDError
+	if !errors.As(err, &invalidID) || invalidID.Problem != "missing" || invalidID.Param != "id" {
+		t.Fatalf("expected InvalidIDError(missing id), got %v", err)
 	}
 }
 

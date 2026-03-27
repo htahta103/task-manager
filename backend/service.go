@@ -31,6 +31,17 @@ func NewTaskService(repo TaskRepository) *TaskService {
 	return &TaskService{repo: repo}
 }
 
+func validateTaskID(id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return InvalidIDError{Param: "id", Problem: "missing"}
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		return InvalidIDError{Param: "id", Value: id, Problem: "invalid"}
+	}
+	return nil
+}
+
 func (s *TaskService) List(ctx context.Context, f TaskFilters) ([]Task, error) {
 	if f.Status != nil && !isValidStatus(*f.Status) {
 		return nil, ErrValidation("invalid status")
@@ -66,15 +77,15 @@ func (s *TaskService) Create(ctx context.Context, in CreateTaskInput) (Task, err
 }
 
 func (s *TaskService) Get(ctx context.Context, id string) (Task, error) {
-	if _, err := uuid.Parse(id); err != nil {
-		return Task{}, ErrInvalidUUID
+	if err := validateTaskID(id); err != nil {
+		return Task{}, err
 	}
 	return s.repo.Get(ctx, id)
 }
 
 func (s *TaskService) Patch(ctx context.Context, id string, in PatchTaskInput) (Task, error) {
-	if _, err := uuid.Parse(id); err != nil {
-		return Task{}, ErrInvalidUUID
+	if err := validateTaskID(id); err != nil {
+		return Task{}, err
 	}
 	if in.Title != nil {
 		t := normalizeTitle(*in.Title)
@@ -93,8 +104,8 @@ func (s *TaskService) Patch(ctx context.Context, id string, in PatchTaskInput) (
 }
 
 func (s *TaskService) Delete(ctx context.Context, id string) error {
-	if _, err := uuid.Parse(id); err != nil {
-		return ErrInvalidUUID
+	if err := validateTaskID(id); err != nil {
+		return err
 	}
 	return s.repo.Delete(ctx, id)
 }
