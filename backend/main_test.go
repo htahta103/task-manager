@@ -154,3 +154,45 @@ func TestPatchTaskReturns404ForUnknownUUID(t *testing.T) {
 		t.Fatalf("expected error %q, got %q", "Task not found", payload["error"])
 	}
 }
+
+func TestClearDoneReturnsDeletedCount(t *testing.T) {
+	server := newServer(NewTaskService(NewMemoryRepo()))
+
+	create := func(body string) {
+		req := httptest.NewRequest(http.MethodPost, "/api/tasks", bytes.NewReader([]byte(body)))
+		rec := httptest.NewRecorder()
+		server.routes().ServeHTTP(rec, req)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d (body=%s)", http.StatusCreated, rec.Code, rec.Body.String())
+		}
+	}
+
+	create(`{"title":"done-1","status":"done"}`)
+	create(`{"title":"pending-1","status":"pending"}`)
+	create(`{"title":"done-2","status":"done"}`)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/tasks/clear/done", nil)
+	rec := httptest.NewRecorder()
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("expected application/json content-type, got %q", got)
+	}
+
+	var payload struct {
+		Message string `json:"message"`
+		Deleted int64  `json:"deleted"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to decode clear-done payload: %v", err)
+	}
+	if payload.Message == "" {
+		t.Fatalf("expected non-empty message, got %q", payload.Message)
+	}
+	if payload.Deleted != 2 {
+		t.Fatalf("expected deleted=2, got %d", payload.Deleted)
+	}
+}
