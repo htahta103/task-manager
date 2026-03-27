@@ -1,38 +1,52 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type task struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type createTaskRequest struct {
-	Title string `json:"title"`
-}
-
 func main() {
-	server := newServer()
-	log.Println("task manager API listening on :8080")
-	if err := http.ListenAndServe(":8080", server.routes()); err != nil {
+	port := os.Getenv("PORT")
+	if strings.TrimSpace(port) == "" {
+		port = "8080"
+	}
+
+	ctx := context.Background()
+	repo, cleanup, err := buildRepository(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cleanup()
+
+	svc := NewTaskService(repo)
+	server := newServer(svc)
+
+	log.Printf("task manager API listening on :%s", port)
+	if err := http.ListenAndServe(":"+port, server.routes()); err != nil {
 		log.Fatal(err)
 	}
 }
 
 type apiServer struct {
-	tasks []task
+	svc        *TaskService
+	corsOrigin string
+	authToken  string
 }
 
-func newServer() *apiServer {
-	return &apiServer{tasks: make([]task, 0)}
+func newServer(svc *TaskService) *apiServer {
+	return &apiServer{
+		svc:        svc,
+		corsOrigin: strings.TrimSpace(os.Getenv("CORS_ORIGIN")),
+		authToken:  strings.TrimSpace(os.Getenv("AUTH_TOKEN")),
+	}
 }
 
 func (s *apiServer) routes() http.Handler {
@@ -40,7 +54,12 @@ func (s *apiServer) routes() http.Handler {
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /api/tasks", s.handleListTasks)
 	mux.HandleFunc("POST /api/tasks", s.handleCreateTask)
-	return mux
+	mux.HandleFunc("GET /api/tasks/{id}", s.handleGetTask)
+	mux.HandleFunc("PATCH /api/tasks/{id}", s.handlePatchTask)
+	mux.HandleFunc("DELETE /api/tasks/{id}", s.handleDeleteTask)
+	mux.HandleFunc("DELETE /api/tasks/clear/done", s.handleClearDoneTasks)
+
+	return s.withMiddleware(mux)
 }
 
 func (s *apiServer) handleHealth(w http.ResponseWriter, _ *http.Request) {
@@ -50,43 +69,41 @@ func (s *apiServer) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
-func (s *apiServer) handleListTasks(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
-		"data":  s.tasks,
-		"count": len(s.tasks),
-	})
+func buildRepository(ctx context.Context) (TaskRepository, func(), error) {
+	dsn := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if dsn == "" {
+		return NewMemoryRepo(), func() {}, nil
+	}
+
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		return nil, func() {}, err
+	}
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, func() {}, err
+	}
+
+	migrationsDir := "migrations"
+	if err := runMigrations(ctx, pool, migrationsDir); err != nil {
+		pool.Close()
+		return nil, func() {}, fmt.Errorf("migrations failed: %w", err)
+	}
+
+	return NewPostgresRepo(pool), pool.Close, nil
 }
 
-func (s *apiServer) handleCreateTask(w http.ResponseWriter, r *http.Request) {
-	var req createTaskRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "invalid JSON payload",
-		})
+func (s *apiServer) mapError(w http.ResponseWriter, err error) {
+	switch {
+	case err == nil:
 		return
+	case errors.Is(err, ErrInvalidUUID):
+		writeError(w, http.StatusBadRequest, "invalid UUID")
+	case IsValidation(err):
+		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, ErrNotFound):
+		writeError(w, http.StatusNotFound, "Task not found")
+	default:
+		writeError(w, http.StatusInternalServerError, "internal server error")
 	}
-
-	title := strings.TrimSpace(req.Title)
-	if title == "" || len(title) > 255 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "title is required and must be under 255 characters",
-		})
-		return
-	}
-
-	now := time.Now().UTC()
-	item := task{
-		ID:        now.Format("20060102150405.000000000"),
-		Title:     title,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-	s.tasks = append(s.tasks, item)
-	writeJSON(w, http.StatusCreated, item)
-}
-
-func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
 }

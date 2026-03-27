@@ -9,7 +9,7 @@ import (
 )
 
 func TestHealthAlwaysReturns200(t *testing.T) {
-	server := newServer()
+	server := newServer(NewTaskService(NewMemoryRepo()))
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rec := httptest.NewRecorder()
 
@@ -24,7 +24,7 @@ func TestHealthAlwaysReturns200(t *testing.T) {
 }
 
 func TestListTasksReturnsEmptyArrayOnFreshServer(t *testing.T) {
-	server := newServer()
+	server := newServer(NewTaskService(NewMemoryRepo()))
 	req := httptest.NewRequest(http.MethodGet, "/api/tasks", nil)
 	rec := httptest.NewRecorder()
 
@@ -38,7 +38,7 @@ func TestListTasksReturnsEmptyArrayOnFreshServer(t *testing.T) {
 	}
 
 	var payload struct {
-		Data  []task `json:"data"`
+		Data  []Task `json:"data"`
 		Count int    `json:"count"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
@@ -56,7 +56,7 @@ func TestListTasksReturnsEmptyArrayOnFreshServer(t *testing.T) {
 }
 
 func TestCreateTaskRejectsMissingTitle(t *testing.T) {
-	server := newServer()
+	server := newServer(NewTaskService(NewMemoryRepo()))
 	body := []byte(`{"description":"missing title"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/tasks", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
@@ -77,5 +77,29 @@ func TestCreateTaskRejectsMissingTitle(t *testing.T) {
 	expected := "title is required and must be under 255 characters"
 	if payload["error"] != expected {
 		t.Fatalf("expected error %q, got %q", expected, payload["error"])
+	}
+}
+
+func TestPatchTaskRejectsInvalidUUID(t *testing.T) {
+	server := newServer(NewTaskService(NewMemoryRepo()))
+
+	body := []byte(`{"title":"new title"}`)
+	req := httptest.NewRequest(http.MethodPatch, "/api/tasks/not-a-uuid", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("expected application/json content-type, got %q", got)
+	}
+	var payload map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to decode error payload: %v", err)
+	}
+	if payload["error"] != "invalid UUID" {
+		t.Fatalf("expected error %q, got %q", "invalid UUID", payload["error"])
 	}
 }

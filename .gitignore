@@ -2,5 +2,7 @@
 .claude/
 .logs/
 __pycache__/
+.beads/
+*.out
 state.json
 CLAUDE.md
